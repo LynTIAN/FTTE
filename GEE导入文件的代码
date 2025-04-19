@@ -1,0 +1,412 @@
+var landsat9 = ee.ImageCollection("LANDSAT/LC09/C02/T1"),
+//原定用Landsat9的数据，但9的数据被删除了，改成了8
+    myShapefile = ee.FeatureCollection("projects/ee-linlingt421/assets/grid"),
+//记得更改双引号里面的asset储存路径
+//下面是上传CO2排放、人口和广州市边界，记得改双引号内的路径
+    myTiff2 = ee.Image("projects/ee-linlingt421/assets/odiac2023"),
+    myTiff3 = ee.Image("projects/ee-linlingt421/assets/population"),
+    boundary = ee.FeatureCollection("projects/ee-linlingt421/assets/boundary"),
+//如果不尝试用卫图影像分析土地覆盖六类的话，下面呢的不用导入，可以删除。   
+water = /* color: #0b4a8b */ee.FeatureCollection(
+        [ee.Feature(
+            ee.Geometry.Point([113.49333319839334, 23.060454750542387]),
+            {
+              "landcover": "water",
+              "system:index": "0"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.43329643236397, 23.06895746714889]),
+            {
+              "landcover": "water",
+              "system:index": "1"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.4302923582673, 23.093277148768344]),
+            {
+              "landcover": "water",
+              "system:index": "2"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.46273635851144, 23.0762222483543]),
+            {
+              "landcover": "water",
+              "system:index": "3"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.41758941637276, 23.063113771477376]),
+            {
+              "landcover": "water",
+              "system:index": "4"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.2708040944187, 23.056310120556795]),
+            {
+              "landcover": "water",
+              "system:index": "5"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.3310529432001, 23.11219697556923]),
+            {
+              "landcover": "water",
+              "system:index": "6"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.33774773690128, 23.111723324281385]),
+            {
+              "landcover": "water",
+              "system:index": "7"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.25267777328887, 23.075274433370847]),
+            {
+              "landcover": "water",
+              "system:index": "8"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.25958714371123, 23.068325471409572]),
+            {
+              "landcover": "water",
+              "system:index": "9"
+            })]),
+    urban = /* color: #ffc82d */ee.FeatureCollection(
+        [ee.Feature(
+            ee.Geometry.Point([113.36599099230213, 23.041245192689455]),
+            {
+              "landcover": "urban",
+              "system:index": "0"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.39156853746815, 23.03413649888506]),
+            {
+              "landcover": "urban",
+              "system:index": "1"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.36547600817127, 23.030345042176787]),
+            {
+              "landcover": "urban",
+              "system:index": "2"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.34047005640214, 22.996819257443317]),
+            {
+              "landcover": "urban",
+              "system:index": "3"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.36862252222245, 22.996740247993248]),
+            {
+              "landcover": "urban",
+              "system:index": "4"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.31372892130685, 23.139124524263593]),
+            {
+              "landcover": "urban",
+              "system:index": "5"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.29965268839669, 23.125232846510663]),
+            {
+              "landcover": "urban",
+              "system:index": "6"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.32617437113595, 23.126653652329765]),
+            {
+              "landcover": "urban",
+              "system:index": "7"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.31184064616036, 23.12175970227685]),
+            {
+              "landcover": "urban",
+              "system:index": "8"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.30730723072675, 23.09366359188963]),
+            {
+              "landcover": "urban",
+              "system:index": "9"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.595405531593, 22.773223698471327]),
+            {
+              "landcover": "urban",
+              "system:index": "10"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.57266039914671, 22.750350413829597]),
+            {
+              "landcover": "urban",
+              "system:index": "11"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.52519602841917, 22.726246217975348]),
+            {
+              "landcover": "urban",
+              "system:index": "12"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.40901776637692, 22.804626194671044]),
+            {
+              "landcover": "urban",
+              "system:index": "13"
+            })]),
+    soil = /* color: #00ffff */ee.FeatureCollection(
+        [ee.Feature(
+            ee.Geometry.Point([113.50165792820847, 22.759028547360643]),
+            {
+              "landcover": "soil",
+              "system:index": "0"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.50633570073045, 22.74782865853234]),
+            {
+              "landcover": "soil",
+              "system:index": "1"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.52075770616034, 22.750441413431776]),
+            {
+              "landcover": "soil",
+              "system:index": "2"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.65898298783232, 22.660454753707775]),
+            {
+              "landcover": "soil",
+              "system:index": "3"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.41388763724065, 22.839132628361714]),
+            {
+              "landcover": "soil",
+              "system:index": "4"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.38761948171665, 22.915003389520546]),
+            {
+              "landcover": "soil",
+              "system:index": "5"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.5276697007214, 22.86630356240324]),
+            {
+              "landcover": "soil",
+              "system:index": "6"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.54037264261594, 22.867410756378156]),
+            {
+              "landcover": "soil",
+              "system:index": "7"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.48811679886002, 22.882912251377633]),
+            {
+              "landcover": "soil",
+              "system:index": "8"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.53739110213483, 23.567719571015363]),
+            {
+              "landcover": "soil",
+              "system:index": "9"
+            })]),
+    roads = /* color: #bf04c2 */ee.FeatureCollection(
+        [ee.Feature(
+            ee.Geometry.Point([113.53448543863838, 23.522530586860455]),
+            {
+              "landcover": "roads",
+              "system:index": "0"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.53246841745919, 23.520799209945594]),
+            {
+              "landcover": "roads",
+              "system:index": "1"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.33171745485426, 23.030949213748432]),
+            {
+              "landcover": "roads",
+              "system:index": "2"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.2803859118294, 23.03757277066655]),
+            {
+              "landcover": "roads",
+              "system:index": "3"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.37598067894591, 22.862159517055485]),
+            {
+              "landcover": "roads",
+              "system:index": "4"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.4104496489733, 22.857522407072096]),
+            {
+              "landcover": "roads",
+              "system:index": "5"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.4194189559191, 22.863216819385258]),
+            {
+              "landcover": "roads",
+              "system:index": "6"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.56781762851257, 22.675381137968746]),
+            {
+              "landcover": "roads",
+              "system:index": "7"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.54892795441366, 22.697960120026718]),
+            {
+              "landcover": "roads",
+              "system:index": "8"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.47393159159377, 22.742255522911442]),
+            {
+              "landcover": "roads",
+              "system:index": "9"
+            })]),
+    densevegetation = /* color: #ff0000 */ee.FeatureCollection(
+        [ee.Feature(
+            ee.Geometry.Point([113.57588588994984, 22.761582096268576]),
+            {
+              "landcover": "densevegetation",
+              "system:index": "0"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.55702041559857, 22.786792588281344]),
+            {
+              "landcover": "densevegetation",
+              "system:index": "1"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.77216582528972, 23.716664986956587]),
+            {
+              "landcover": "densevegetation",
+              "system:index": "2"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.82709746591472, 23.761291872130954]),
+            {
+              "landcover": "densevegetation",
+              "system:index": "3"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.77903228036784, 23.59779508136596]),
+            {
+              "landcover": "densevegetation",
+              "system:index": "4"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.7103677295866, 23.63743038483261]),
+            {
+              "landcover": "densevegetation",
+              "system:index": "5"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.69800811044597, 23.736780404858585]),
+            {
+              "landcover": "densevegetation",
+              "system:index": "6"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.6389565967741, 23.766319295032854]),
+            {
+              "landcover": "densevegetation",
+              "system:index": "7"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.63209014169597, 23.66070267073782]),
+            {
+              "landcover": "densevegetation",
+              "system:index": "8"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.6223907038434, 23.429146563419092]),
+            {
+              "landcover": "densevegetation",
+              "system:index": "9"
+            })]),
+    lightvegetation = /* color: #00ff00 */ee.FeatureCollection(
+        [ee.Feature(
+            ee.Geometry.Point([113.55624741099345, 22.630061372800263]),
+            {
+              "landcover": "lightvegetation",
+              "system:index": "0"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.58560150645243, 22.631328926183112]),
+            {
+              "landcover": "lightvegetation",
+              "system:index": "1"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.574357686262, 22.64432067422604]),
+            {
+              "landcover": "lightvegetation",
+              "system:index": "2"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.56680458567607, 22.620871261197877]),
+            {
+              "landcover": "lightvegetation",
+              "system:index": "3"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.46957581842817, 22.744068184752088]),
+            {
+              "landcover": "lightvegetation",
+              "system:index": "4"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.45949071253217, 22.74011029843861]),
+            {
+              "landcover": "lightvegetation",
+              "system:index": "5"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.46249478662885, 22.747115679112625]),
+            {
+              "landcover": "lightvegetation",
+              "system:index": "6"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.44926746316443, 22.772176026772716]),
+            {
+              "landcover": "lightvegetation",
+              "system:index": "7"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.44446094460974, 22.772096886458044]),
+            {
+              "landcover": "lightvegetation",
+              "system:index": "8"
+            }),
+        ee.Feature(
+            ee.Geometry.Point([113.4325304789115, 22.820759511188207]),
+            {
+              "landcover": "lightvegetation",
+              "system:index": "9"
+            })]),
+    imageVisParam = {"opacity":0.01,"gamma":0.1},
+    imageVisParam2 = {"opacity":0.01,"gamma":0.1},
+    imageVisParam3 = {"opacity":0.01,"gamma":0.1},
+    imageVisParam4 = {"opacity":0.01,"gamma":0.1},
+    imageVisParam5 = {"opacity":0.01,"gamma":0.1},
+    imageVisParam6 = {"opacity":0.01,"gamma":0.1},
+    imageVisParam7 = {"opacity":0.01,"gamma":0.1},
+    imageVisParam8 = {"opacity":0.01,"gamma":0.1},
+    imageVisParam9 = {"opacity":0.01,"gamma":0.1},
+    imageVisParam10 = {"opacity":0.01,"gamma":0.1},
+//下面是导入的网格和每个网格的主导用地类型
+    grid = ee.FeatureCollection("projects/ee-linlingt421/assets/grid"),
+    landuse = ee.FeatureCollection("projects/ee-linlingt421/assets/landusemax");
