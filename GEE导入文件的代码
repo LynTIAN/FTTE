@@ -410,3 +410,7 @@ water = /* color: #0b4a8b */ee.FeatureCollection(
 //下面是导入的网格和每个网格的主导用地类型
     grid = ee.FeatureCollection("projects/ee-linlingt421/assets/grid"),
     landuse = ee.FeatureCollection("projects/ee-linlingt421/assets/landusemax");
+//引入其他图层
+Map.addLayer(grid, {}, 'grid');
+Map.addLayer(landuse, {}, 'landuse');
+Map.centerObject(landuse)
