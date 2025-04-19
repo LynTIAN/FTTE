@@ -1,0 +1,197 @@
+// Applies scaling factors.
+function applyScaleFactors(image) {
+  var opticalBands = image.select('SR_B.').multiply(0.0000275).add(-0.2);
+  var thermalBands = image.select('ST_B.*').multiply(0.00341802).add(149.0);
+  return image.addBands(opticalBands, null, true)
+              .addBands(thermalBands, null, true);
+}
+ 
+//L8 cloud_remove
+function maskL8sr(image) {
+  // 第3位和第5位分别是云影和云。
+  var cloudShadowBitMask = 1 << 4;
+  var cloudsBitMask = 1 << 3;
+ 
+  // 获取pixel QA band.
+  var qa = image.select('QA_PIXEL');
+ 
+  // 明确条件，设置两个值都为0
+  var mask = qa.bitwiseAnd(cloudShadowBitMask).eq(0)
+      .and(qa.bitwiseAnd(cloudsBitMask).eq(0));
+ 
+  // 更新掩膜云的波段，最后按照反射率缩放，在选择波段属性，最后赋值给影像
+  return image.updateMask(mask)
+      .select("SR_B[1-7]*")
+      .copyProperties(image, ["system:time_start"]);
+}
+ 
+ 
+//Filter image collection for time window, spatial location, and cloud cover
+var startDate = ee.Date('2023-01-01'); 
+var endDate = ee.Date('2023-12-31'); 
+var collection = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2')
+                  .filterDate(startDate, endDate)
+                  .map(applyScaleFactors)
+                  .map(maskL8sr)
+                  .median();
+
+// 使用边界进行裁剪
+var boundary = ee.FeatureCollection('projects/ee-linlingt421/assets/boundary'); // 确保定义正确的边界
+var clippedImage = collection.clip(boundary);
+
+var visualParam = {bands: ['SR_B4', 'SR_B3', 'SR_B2'], min:0.0,max: 0.3};//可视化参数1
+print("l8Image",visualParam,clippedImage);
+Map.centerObject(boundary, 11); 
+Map.addLayer(clippedImage, visualParam, "L8 Image");
+
+var mndwi = clippedImage.normalizedDifference(['SR_B3', 'SR_B6']).rename('MNDWI');//计算MNDWI
+var ndbi = clippedImage.normalizedDifference(['SR_B6', 'SR_B5']).rename('NDBI');//计算NDBI
+var ndvi = clippedImage.normalizedDifference(['SR_B5', 'SR_B4']).rename('NDVI');//计算NDVI
+var strm=ee.Image("USGS/SRTMGL1_003");
+var dem=ee.Algorithms.Terrain(strm);
+var elevation=dem.select('elevation');
+var slope=dem.select('slope');
+print('MNDWI calculated:', mndwi);
+var imageWithBands = clippedImage 
+      .addBands(ndvi)
+      .addBands(ndbi)
+      .addBands(mndwi)
+      .addBands(elevation.rename("ELEVATION"))
+      .addBands(slope.rename("SLOPE"))
+
+function convertLandcoverToNumeric(feature) {
+  var landcoverString = feature.get('landcover');
+  var landcoverNumeric;
+  switch(landcoverString) {
+    case 'water':
+      landcoverNumeric = 0;
+      break;
+    case 'urban':
+      landcoverNumeric = 1;
+      break;
+    case 'soil':
+      landcoverNumeric = 2;
+      break;
+    case 'roads':
+      landcoverNumeric = 3;
+      break;
+    case 'densevegetation':
+      landcoverNumeric = 4;
+      break;
+    case 'lightvegetation':
+      landcoverNumeric = 5;
+      break;
+    default:
+      throw new Error('Unexpected landcover type: ' + landcoverString);
+  }
+  return feature.set('landcover', landcoverNumeric);
+}
+
+
+// 应用转换函数到每个 FeatureCollection
+water = water.map(convertLandcoverToNumeric);
+urban = urban.map(convertLandcoverToNumeric);
+soil = soil.map(convertLandcoverToNumeric);
+roads = roads.map(convertLandcoverToNumeric);
+densevegetation = densevegetation.map(convertLandcoverToNumeric);
+lightvegetation = lightvegetation.map(convertLandcoverToNumeric);
+
+// 使用 merge 方法依次合并所有 FeatureCollection
+var allFeatures = water
+  .merge(urban)
+  .merge(soil)
+  .merge(roads)
+  .merge(densevegetation)
+  .merge(lightvegetation);
+
+
+ 
+ 
+var bands = ['SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'SR_B7','MNDWI','NDBI','NDVI','SLOPE', 'ELEVATION'];
+
+var training = imageWithBands.select(bands).sampleRegions({
+  collection:  allFeatures,
+  properties: ['landcover'],
+  scale: 30
+});
+ 
+// random uniforms to the training dataset.
+var withRandom = training.randomColumn('random');
+var split = 0.7; 
+var trainingPartition = withRandom.filter(ee.Filter.lt('random', split));
+var testingPartition = withRandom.filter(ee.Filter.gte('random', split));
+
+ 
+var classProperty = 'landcover';
+var classifier = ee.Classifier.smileRandomForest(30).train({
+  features: trainingPartition,
+  classProperty: 'landcover',
+  inputProperties: bands
+});
+var imageVisParam3 = {min: 0, max: 1, palette: ['blue', 'green', 'red']};
+var classified = imageWithBands.select(bands).classify(classifier);
+Map.addLayer(classified, imageVisParam3);
+print(classified);
+var test = testingPartition.classify(classifier);
+
+//决策树数量选择
+var numTrees = ee.List.sequence(5, 100, 5); 
+var accuracies = numTrees.map(function(t)
+{ 
+  var classifier = ee.Classifier.smileRandomForest(t)
+                    .train({
+                features: trainingPartition,
+  classProperty: 'landcover',
+  inputProperties: bands
+                    });
+  return testingPartition
+      .classify(classifier)
+      .errorMatrix('landcover', 'classification')
+      .accuracy();
+}); 
+print(ui.Chart.array.values({
+  array: ee.Array(accuracies),
+  axis: 0,
+  xLabels: numTrees
+}));
+//随机森林特征重要性
+var dict = classifier.explain();
+print('Explain:',dict);
+ 
+var variable_importance = ee.Feature(null, ee.Dictionary(dict).get('importance'));
+var chart =ui.Chart.feature.byProperty(variable_importance)
+.setChartType('ColumnChart')
+.setOptions({
+title: 'Random Forest Variable Importance',
+legend: {position: 'none'},
+hAxis: {title: 'Bands'},
+vAxis: {title: 'Importance'}
+});
+ 
+print(chart);
+
+var confusionMatrix = test.errorMatrix('landcover', 'classification');
+print('confusionMatrix',confusionMatrix);
+print('overall accuracy', confusionMatrix.accuracy());
+print('kappa accuracy', confusionMatrix.kappa());
+
+var areaall = ee.Image.pixelArea().addBands(classified)
+.reduceRegion({
+        reducer: ee.Reducer.sum().group({
+          groupField: 1, 
+          groupName: "landcover"
+        }),
+        geometry: boundary, 
+        scale: 30,
+        maxPixels:10e15,
+});
+print(areaall);
+Export.image.toDrive({
+        image:  classified,
+        description: 'xiongan_RF',
+        folder: 'xiongan_RF',
+        scale: 30,
+        region: boundary,
+        maxPixels:34e10
+      });
+      
