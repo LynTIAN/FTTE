@@ -1,0 +1,35 @@
+// 1. 加载广州边界（你的 asset）
+var guangzhou = ee.FeatureCollection('users/marshhiiiiii/GZBoundary');
+
+// 2. 加载 VIIRS 夜间灯光（每月平均辐射值）数据集
+var viirs = ee.ImageCollection('NOAA/VIIRS/DNB/MONTHLY_V1/VCMSLCFG')
+  .filterBounds(guangzhou)
+  .filterDate('2023-01-01', '2023-12-31')
+  .select('avg_rad');  // avg_rad 是灯光强度的波段
+
+// 3. 计算 2023 年度平均夜间灯光
+var ntl2023 = viirs.mean().clip(guangzhou);
+
+// 4. 设置地图中心
+Map.centerObject(guangzhou, 9);
+
+// 5. 可视化参数（你可以根据实际亮度调）
+var visParams = {
+  min: 0,
+  max: 60,
+  palette: ['000000', '0f0f50', '3777ff', 'ffffff'] // 从暗到亮的渐变
+};
+
+// 6. 加载到地图
+Map.addLayer(ntl2023, visParams, '2023年平均夜间灯光');
+
+// 7. 导出图像到 Google Drive
+Export.image.toDrive({
+  image: ntl2023,
+  description: 'Guangzhou_NTL_2023',
+  folder: 'GEEExports',
+  region: guangzhou.geometry(),
+  scale: 100,
+  crs: 'EPSG:4326',
+  maxPixels: 1e13
+});
