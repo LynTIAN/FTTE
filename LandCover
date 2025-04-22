@@ -121,3 +121,4 @@ legendItems.forEach(function(item) {
 
 // 添加图例到地图界面
 Map.add(legend);
+
