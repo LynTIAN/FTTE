@@ -1,0 +1,84 @@
+原始CO2数据点数量:
+9664
+原始NTL数据点数量:
+9664
+原始土地覆盖数据点数量:
+9664
+原始人口数据点数量:
+9664
+特征图像:
+Image (8 bands)
+type: Image
+bands: List (8 elements)
+提取特征前的样本数量:
+9664
+过滤后的训练数据数量:
+9614
+各特征的缺失值统计:
+FeatureCollection (8 elements, 4 columns)
+type: FeatureCollection
+columns: Object (4 properties)
+feature: String
+null_count: Long
+system:index: String
+valid_count: Long
+features: List (8 elements)
+0: Feature 0
+1: Feature 1
+2: Feature 2
+3: Feature 3
+4: Feature 4
+5: Feature 5
+6: Feature 6
+7: Feature 7
+训练数据示例:
+FeatureCollection projects/ee-71magicsong/assets/CO2_guangzhou (5 elements, 1 column)
+type: FeatureCollection
+id: projects/ee-71magicsong/assets/CO2_guangzhou
+version: 1745398262108268
+columns: Object (1 property)
+co2_value: Float
+features: List (5 elements)
+0: Feature 00000000000000000643 (Polygon, 17 properties)
+1: Feature 000000000000000007cd (Polygon, 17 properties)
+2: Feature 00000000000000000be0 (MultiPolygon, 17 properties)
+3: Feature 00000000000000000dc0 (Polygon, 17 properties)
+4: Feature 00000000000000000e3c (Polygon, 17 properties)
+properties: Object (1 property)
+system:asset_size: 1992757
+所有特征名称:
+List (8 elements)
+0: lc_10
+1: lc_20
+2: lc_30
+3: lc_40
+4: lc_50
+5: lc_60
+6: population_norm
+7: ntl_norm
+特征与CO2的相关性排序:
+FeatureCollection (8 elements, 4 columns)
+训练集样本数量:
+6696
+测试集样本数量:
+2918
+选择用于模型的顶级特征:
+List (6 elements)
+0: population_norm
+1: ntl_norm
+2: lc_50
+3: lc_10
+4: lc_40
+5: lc_20
+所有特征模型 - R:
+0.1705314850842306
+所有特征模型 - R²:
+0.029080987405033166
+所有特征模型 - RMSE:
+2644.282620788453
+顶级特征模型 - R:
+0.16514022153850255
+顶级特征模型 - R²:
+0.027271292769785703
+顶级特征模型 - RMSE:
+2656.448903946561
