@@ -96,4 +96,5 @@ tickValues.forEach(function(val) {
 });
 legend.add(tickPanel);
 
-Map.add(legend);
+Map.add(legend)；
+
