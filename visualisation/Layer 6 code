@@ -1,92 +1,103 @@
-// 1. Load Guangzhou boundary (replace with your own asset ID if different)
-var guangzhouBoundary = ee.FeatureCollection(
-  'projects/ee-chenyixuan0402/assets/GZBoundary'
-);
+https://code.earthengine.google.com/944a1148eb959f02e0a418f464662534
 
-// 2. Load nighttime lights feature collection
-var ntlFC = ee.FeatureCollection(
-  'projects/ee-chenyixuan0402/assets/NTL0422'
-);
+// ==================== 1. Load Guangzhou Districts Boundary ==================== //
+// (用新的区级边界代替之前的总边界 guangzhouBoundary)
 
-// 3. Print a sample and the property names to confirm the light-intensity field
+// Load districts
+var districts = ee.FeatureCollection('users/HuitingChen/GZ_boundaries');
+
+// Define boundary style
+var districtStyle = {
+  color: 'white',       // Boundary line color
+  width: 1.2,           // Boundary width
+  fillColor: '00000000' // Transparent fill
+};
+
+// Style the districts
+var districtStyled = districts.style(districtStyle);
+
+// ==================== 2. Load and Process Nighttime Lights ==================== //
+
+// Load nighttime lights feature collection
+var ntlFC = ee.FeatureCollection('projects/ee-chenyixuan0402/assets/NTL0422');
+
+// Print to check
 print('Sample NTL features:', ntlFC.limit(5));
 print('Property names:', ntlFC.first().propertyNames());
-// Look for the "RASTERVALU" field, which holds the light intensity values.
 
-// 4. Define classification thresholds and matching colors
-var thresholds = [0, 5, 10, 20, 30, 50];
+// Convert vector to raster
+var ntlImage = ntlFC.reduceToImage({
+  properties: ['RASTERVALU'],
+  reducer: ee.Reducer.first()
+}).rename('NTL_intensity');
+
+// Define color gradient palette (Blue → Violet → Red → Orange → Yellow → White)
 var palette = [
-  '#00000000',  // ≤ 0: transparent (no light)
-  '#202040',    // (0,5]
-  '#4080c0',    // (5,10]
-  '#80c0ff',    // (10,20]
-  '#ffff80',    // (20,30]
-  '#ffffff'     // > 30
+  '0000ff',  // Blue
+  '8a2be2',  // Blue-violet
+  'ff0000',  // Red
+  'ffa500',  // Orange
+  'ffff00',  // Yellow
+  'ffffff'   // White
 ];
 
-// 5. Style each feature according to its intensity
-var styledFeatures = ntlFC.map(function(feature) {
-  var intensity = ee.Number(feature.get('RASTERVALU'));
-  var fillColor = ee.String(
-    ee.Algorithms.If(intensity.lte(thresholds[0]), palette[0],
-    ee.Algorithms.If(intensity.lte(thresholds[1]), palette[1],
-    ee.Algorithms.If(intensity.lte(thresholds[2]), palette[2],
-    ee.Algorithms.If(intensity.lte(thresholds[3]), palette[3],
-    ee.Algorithms.If(intensity.lte(thresholds[4]), palette[4],
-                                      palette[5]
-    )))))
-  );
-  return feature.set('style', ee.Dictionary({
-    fillColor: fillColor,
-    color:     '000000',  // black border
-    width:     0.3
-  }));
-});
+// Visualization parameters
+var visParams = {
+  min: 0,
+  max: 50,
+  palette: palette
+};
 
-// 6. Add layers to the map
-Map.centerObject(guangzhouBoundary, 8);
-Map.addLayer(
-  styledFeatures.style({styleProperty: 'style'}),
-  {},
-  'Nighttime Lights (Classified)'
-);
+// Mask out very low light areas
+var ntlMasked = ntlImage.updateMask(ntlImage.gt(0));
 
-// 7. Build a legend panel
+// Clip nighttime light raster to districts boundary
+var ntlClipped = ntlMasked.clip(districts);
+
+// ==================== 3. Add Layers to Map ==================== //
+
+Map.centerObject(districts, 9);
+Map.addLayer(ntlClipped, visParams, 'Nighttime Lights (Districts Clipped)');
+Map.addLayer(districtStyled, {}, 'District Boundaries');
+
+// ==================== 4. Create Legend ==================== //
+
 var legend = ui.Panel({
   style: { position: 'bottom-left', padding: '8px 15px' }
 });
-legend.add(ui.Label('Nighttime Light Intensity', { fontWeight: 'bold' }));
 
+// Title
+legend.add(ui.Label({
+  value: 'Nighttime Light Intensity',
+  style: { fontWeight: 'bold', fontSize: '14px', margin: '0 0 4px 0' }
+}));
+
+// Color bar
 var colorBar = ui.Thumbnail({
   image: ee.Image.pixelLonLat().select(0),
   params: {
-    bbox:       [0, 0, 1, 0.1],
+    bbox: [0, 0, 1, 0.1],
     dimensions: '200x10',
-    format:     'png',
-    min:        0,
-    max:        1,
-    palette:    palette
+    format: 'png',
+    min: 0,
+    max: 1,
+    palette: palette
   },
-  style: { stretch: 'horizontal', margin: '0 0 4px 0' }
+  style: { stretch: 'horizontal', margin: '0 0 8px 0' }
 });
 legend.add(colorBar);
 
-// 8. Add thresholds as tick labels
-var tickValues = [
-  thresholds[0],
-  thresholds[1],
-  thresholds[2],
-  thresholds[3],
-  thresholds[4],
-  '> ' + thresholds[4]
-];
+// Tick labels
 var tickPanel = ui.Panel({
   layout: ui.Panel.Layout.flow('horizontal'),
-  style:  { stretch: 'horizontal' }
+  style: { stretch: 'horizontal', margin: '0 0 0 0' }
 });
-tickValues.forEach(function(val) {
-  tickPanel.add(ui.Label(val, { margin: '0 25px' }));
+
+var tickLabels = ['0', '10', '20', '30', '40', '50'];
+tickLabels.forEach(function(label) {
+  tickPanel.add(ui.Label(label, { margin: '0 18px', fontSize: '12px' }));
 });
 legend.add(tickPanel);
 
+// Add legend to map
 Map.add(legend);
